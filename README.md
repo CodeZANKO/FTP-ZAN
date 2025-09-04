@@ -88,25 +88,25 @@ python ftp_checker.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
 ### Test a single FTP server
 
 ```bash
-python ftp_checker.py --host ftp.example.com --username user --password pass
+python ftp_ZAN.py --host ftp.example.com --username user --password pass
 ```
 
 ### Test an SFTP server on custom port
 
 ```bash
-python ftp_checker.py --host sftp.example.com --port 2222 --username user --password pass --protocol 1
+python ftp_ZAN.py --host sftp.example.com --port 2222 --username user --password pass --protocol 1
 ```
 
 ### Import from FileZilla XML and save results
 
 ```bash
-python ftp_checker.py --filezilla-xml SiteManager.xml --json results.json --csv results.csv
+python ftp_ZAN.py --filezilla-xml SiteManager.xml --json results.json --csv results.csv
 ```
 
 ### Run with 10 concurrent workers and check path
 
 ```bash
-python ftp_checker.py --filezilla-xml servers.xml --max-workers 10 --check-path /uploads
+python ftp_ZAN.py --filezilla-xml servers.xml --max-workers 10 --check-path /uploads
 ```
 
 ---
@@ -114,7 +114,7 @@ python ftp_checker.py --filezilla-xml servers.xml --max-workers 10 --check-path 
 ## 🖥️ Demo (Sample Output)
 
 ```bash
-$ python ftp_checker.py --host ftp.example.com --username user --password pass
+$ python ftp_ZAN.py --host ftp.example.com --username user --password pass
 
 [✔] Connected successfully: ftp.example.com:21
 [✔] Login successful: user
@@ -122,7 +122,7 @@ $ python ftp_checker.py --host ftp.example.com --username user --password pass
 [ℹ] Protocol: FTP
 [ℹ] Response time: 0.45s
 
-$ python ftp_checker.py --host sftp.example.com --port 2222 --username wrong --password wrong --protocol 1
+$ python ftp_ZAN.py --host sftp.example.com --port 2222 --username wrong --password wrong --protocol 1
 
 [✖] Connection failed: Authentication error
 ```
