@@ -34,8 +34,8 @@ Supports FileZilla XML import, direct host input, multi-threaded checking, and m
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/ftp-checker.git
-cd ftp-checker
+git clone https://github.com/CodeZANKO/FTP-ZAN.git
+cd FTP-ZAN
 ````
 
 Make sure you have **Python 3.8+** installed.
