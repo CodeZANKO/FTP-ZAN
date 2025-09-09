@@ -1,31 +1,34 @@
-# FTP ZAN
-<p align="center">
-<img width="1536" height="1024" alt="ChatGPT Image Sep 4, 2025, 02_02_50 PM" src="https://github.com/user-attachments/assets/00ee4a7e-6514-4998-9eee-37d663e3f33e" />
-</p>
+
+---
+
 # FTP ZAN
 
-# Advanced FTP/SFTP Connection Tester
+<p align="center">
+<img width="1536" height="1024" alt="FTP ZAN Screenshot" src="https://github.com/user-attachments/assets/00ee4a7e-6514-4998-9eee-37d663e3f33e" />
+</p>
+
+# Advanced FTP/SFTP Connection Tester & Brute Forcer
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)]()
 [![Status](https://img.shields.io/badge/status-active-success.svg)]()
 
-A powerful and flexible tool to test FTP/SFTP connections.  
-Supports FileZilla XML import, direct host input, multi-threaded checking, and multiple output formats.
+A **powerful and flexible tool** to test FTP/SFTP connections, supporting FileZilla XML import, direct host input, brute-force attacks, multi-threaded checking, and multiple output formats.
 
 ---
 
 ## ✨ Features
 
-- ✅ Test **FTP** and **SFTP** connections  
-- ✅ Import server settings from **FileZilla XML**  
-- ✅ Support for **custom ports**  
-- ✅ Multi-threaded checks with configurable workers  
-- ✅ Path existence check on remote servers  
-- ✅ Export results to **TXT, XML, JSON, CSV**  
-- ✅ Debug mode for troubleshooting  
-- ✅ Quiet mode for silent operations  
+* ✅ Test **FTP** and **SFTP** connections
+* ✅ Brute-force login support (usernames, passwords, combos)
+* ✅ Import server settings from **FileZilla XML**
+* ✅ Support for **custom ports**
+* ✅ Multi-threaded checks with configurable workers
+* ✅ Check existence of paths on remote servers
+* ✅ Export results to **TXT, XML, JSON, CSV**
+* ✅ Debug mode for troubleshooting
+* ✅ Quiet mode for silent operations
 
 ---
 
@@ -36,10 +39,10 @@ Clone the repository:
 ```bash
 git clone https://github.com/CodeZANKO/FTP-ZAN.git
 cd FTP-ZAN
-````
+```
 
 Make sure you have **Python 3.8+** installed.
-Install dependencies if any (e.g., `paramiko` for SFTP):
+Install dependencies (e.g., `paramiko` for SFTP):
 
 ```bash
 pip install -r requirements.txt
@@ -50,12 +53,15 @@ pip install -r requirements.txt
 ## ⚡ Usage
 
 ```bash
-python ftp_checker.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
-                      [--port PORT] [--username USERNAME] [--password PASSWORD]
-                      [--protocol {0,1}] [--timeout TIMEOUT]
-                      [--max-workers MAX_WORKERS] [--check-path CHECK_PATH]
-                      [--txt TXT] [--xml XML] [--json JSON] [--csv CSV]
-                      [--quiet] [--debug]
+python ftp_ZAN.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
+                  [--brute-force] [--port PORT]
+                  [--username USERNAME] [--password PASSWORD]
+                  [--protocol {0,1}] [--timeout TIMEOUT]
+                  [--max-workers MAX_WORKERS] [--check-path CHECK_PATH]
+                  [--user-list USER_LIST] [--pass-list PASS_LIST]
+                  [--combo-list COMBO_LIST] [--port-list PORT_LIST]
+                  [--txt TXT] [--xml XML] [--json JSON] [--csv CSV]
+                  [--quiet] [--debug]
 ```
 
 ---
@@ -67,6 +73,7 @@ python ftp_checker.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
 | `-h, --help`       | Show help message and exit                       |
 | `--filezilla-xml`  | Path to FileZilla XML configuration file         |
 | `--host`           | FTP/SFTP server hostname or IP address           |
+| `--brute-force`    | Enable brute-force mode                          |
 | `--port`           | Server port (default: 21 for FTP, 22 for SFTP)   |
 | `--username`       | Username for authentication                      |
 | `--password`       | Password for authentication                      |
@@ -74,6 +81,10 @@ python ftp_checker.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
 | `--timeout`        | Connection timeout in seconds                    |
 | `--max-workers`    | Maximum concurrent connections                   |
 | `--check-path`     | Path to check on the server                      |
+| `--user-list`      | File containing usernames for brute-force        |
+| `--pass-list`      | File containing passwords for brute-force        |
+| `--combo-list`     | File containing username\:password combos        |
+| `--port-list`      | File or comma-separated list of ports            |
 | `--txt`            | Output TXT filename                              |
 | `--xml`            | Output XML filename                              |
 | `--json`           | Output JSON filename                             |
@@ -91,7 +102,7 @@ python ftp_checker.py [-h] (--filezilla-xml FILEZILLA_XML | --host HOST)
 python ftp_ZAN.py --host ftp.example.com --username user --password pass
 ```
 
-### Test an SFTP server on custom port
+### Test an SFTP server on a custom port
 
 ```bash
 python ftp_ZAN.py --host sftp.example.com --port 2222 --username user --password pass --protocol 1
@@ -103,7 +114,13 @@ python ftp_ZAN.py --host sftp.example.com --port 2222 --username user --password
 python ftp_ZAN.py --filezilla-xml SiteManager.xml --json results.json --csv results.csv
 ```
 
-### Run with 10 concurrent workers and check path
+### Run brute-force attack on a host
+
+```bash
+python ftp_ZAN.py --host ftp.example.com --brute-force --user-list users.txt --pass-list passwords.txt
+```
+
+### Check path with multiple workers
 
 ```bash
 python ftp_ZAN.py --filezilla-xml servers.xml --max-workers 10 --check-path /uploads
@@ -149,6 +166,9 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 👤 Author
 
-Developed by **\[Zanko H. Aziz]** 🚀
+Developed by **Zanko H. Aziz** 🚀
+
+---
+
 
 
