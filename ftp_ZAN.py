@@ -86,6 +86,49 @@ class FileZillaParser:
             logger.error(f"Error parsing FileZilla XML: {str(e)}")
             print(f"{Fore.RED}Error parsing FileZilla XML: {str(e)}{Style.RESET_ALL}")
             raise Exception(f"Error parsing FileZilla XML: {str(e)}")
+class FileZillaTxtParser:
+    @staticmethod
+    def parse_filezilla_txt(txt_file: str) -> List[Dict[str, Any]]:
+        servers = []
+        try:
+            server = {}
+            with open(txt_file, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        # empty line means new server block
+                        if "host" in server and "username" in server:
+                            servers.append(server)
+                        server = {}
+                        continue
+
+                    if line.startswith("Name:"):
+                        server["name"] = line.split(":", 1)[1].strip()
+                    elif line.startswith("User:"):
+                        server["username"] = line.split(":", 1)[1].strip()
+                    elif line.startswith("Password:"):
+                        server["password"] = line.split(":", 1)[1].strip()
+                    elif line.startswith("Host:"):
+                        server["host"] = line.split(":", 1)[1].strip()
+                    elif line.startswith("Port:"):
+                        port = line.split(":", 1)[1].strip()
+                        server["port"] = int(port) if port.isdigit() else 21
+
+                # add last one
+                if "host" in server and "username" in server:
+                    servers.append(server)
+
+            # fill protocol/type defaults
+            for s in servers:
+                s.setdefault("protocol", 0)
+                s.setdefault("type", "FTP" if s["protocol"] == 0 else "SFTP")
+                s.setdefault("logontype", "1")
+
+        except Exception as e:
+            logger.error(f"Error parsing FileZilla TXT: {str(e)}")
+            print(f"{Fore.RED}Error parsing FileZilla TXT: {str(e)}{Style.RESET_ALL}")
+
+        return servers
 
 class FTPChecker:
     def __init__(self, host: str, username: str, password: str, port: int = 21, 
@@ -623,6 +666,7 @@ def main():
 
     # Input selection (no longer mutually exclusive, so we can use --host with --brute-force)
     parser.add_argument("--filezilla-xml", help="Path to FileZilla XML export")
+    parser.add_argument("--filezilla-txt", help="Path to FileZilla TXT export (host:port:protocol:username:password)")
     parser.add_argument("--host", help="Target host (IP or domain)")
     parser.add_argument("--brute-force", action="store_true", help="Enable brute-force mode")
 
@@ -717,6 +761,9 @@ def main():
 
         checker = AdvancedFTPChecker()
         results = checker.check_servers(servers, args.max_workers, args.check_path, args.timeout)
+    elif args.filezilla_txt:
+        servers = FileZillaTxtParser.parse_filezilla_txt(args.filezilla_txt)
+        results = AdvancedFTPChecker().check_servers(servers, args.max_workers, args.check_path, args.timeout)
 
     # --- Single host mode ---
     elif args.host:
